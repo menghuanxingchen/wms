@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.cmsystem.wms.mapper.RoleAuthMapper">
+
+    <!-- 批量插入 -->
+    <insert id="insertAll">
+
+        insert into role_auth (role_id, auth_id)
+        values
+        <foreach collection="list" item="item" separator=",">
+            ( #{item.roleId} ,#{item.authId} )
+        </foreach>
+
+    </insert>
+
+
+</mapper>

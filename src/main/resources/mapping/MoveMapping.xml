@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.cmsystem.wms.mapper.MoveMapper">
+
+    <sql id="selectBase">
+        select
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.selectUserWarehouseField"></include>
+        ,
+        mtl.id material_id ,
+        mtl.code material_code,
+        mtl.name material_name,
+        ity.warehouse_id,
+        ity.reservoir_id,
+        ity.stock_id,
+        ity_t.warehouse_id warehouse_tid,
+        ity_t.reservoir_id reservoir_tid,
+        ity_t.stock_id stock_tid,
+        war_t.name warehouse_name_to,
+        res_t.name reservoir_name_to,
+        stk_t.name stock_name_to ,
+        war_t.code warehouse_code_to,
+        res_t.code reservoir_code_to,
+        stk_t.code stock_code_to ,
+        appr_u.real_name approve_user_name,
+        stk_e.number stockEntryNumber ,
+        stk_e.order_number stockEntryOrderNumber ,
+        stk_ts.number stockTransNumber ,
+        ( select name from category where id = mtl.category_id ) material_category_name ,
+        ( select name from category where id = mtl.unit_id ) material_unit_name
+        from move t
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.selectUserJoin"></include>
+        left join inventory ity on ity.id = t.inventory_id
+        left join inventory ity_t on ity_t.id = t.inventory_tid
+        left join material mtl on mtl.id = t.material_id
+        left join warehouse war on ity.warehouse_id = war.id
+        left join reservoir res on ity.reservoir_id = res.id
+        left join stock stk on ity.stock_id = stk.id
+        left join warehouse war_t on ity_t.warehouse_id = war_t.id
+        left join reservoir res_t on ity_t.reservoir_id = res_t.id
+        left join stock stk_t on ity_t.stock_id = stk_t.id
+        left join [user] appr_u on appr_u.id = t.approve_uid
+        left join stock_entry stk_e on stk_e.id = t.stock_entry_id
+        left join stock_trans stk_ts on stk_ts.id = t.stock_trans_id
+    </sql>
+    <select id="selectWhere" resultType="com.cmsystem.wms.model.Move">
+        <include refid="selectBase"></include>
+        <where>
+            <if test="move.type != null and move.type != 0">
+                and t.type = #{param1.type}
+            </if>
+            <if test="move.companyId != null and move.companyId != 0">
+                and t.company_id = #{param1.companyId}
+            </if>
+            <if test="move.startTime != null">
+                and t.happen_date >= #{param1.startTime}
+            </if>
+            <if test="move.endTime != null">
+                and t.happen_date &lt; #{param1.endTime}
+            </if>
+            <if test="move.status != null and move.status != 0">
+                and t.status &lt; #{param1.status}
+            </if>
+            <if test="param1.warehouseId != null and param1.warehouseId != 0">
+                and ity.warehouse_id = #{param1.warehouseId}
+            </if>
+            <if test="param1.reservoirId != null and param1.reservoirId != 0">
+                and ity.reservoir_id = #{param1.reservoirId}
+            </if>
+            <if test="param1.stockId != null and param1.stockId != 0">
+                and ity.stock_id = #{param1.stockId}
+            </if>
+            <if test="param1.stockEntryNumber != null and param1.stockEntryNumber != ''">
+                and stk_e.number like '%${param1.stockEntryNumber}%'
+            </if>
+            <if test="param1.stockEntryOrderNumber != null and param1.stockEntryOrderNumber != ''">
+                and stk_e.order_number like '%${param1.stockEntryOrderNumber}%'
+            </if>
+            <if test="param1.stockTransNumber != null and param1.stockTransNumber != ''">
+                and stk_ts.number like '%${param1.stockTransNumber}%'
+            </if>
+            and t.is_del is null
+        </where>
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.sortNoT"></include>
+    </select>
+    <select id="findById" resultType="com.cmsystem.wms.model.Move">
+        <include refid="selectBase"></include>
+        where t.id = #{id} and t.is_del is null
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="move.id">
+        insert into move (
+        type, inventory_id, inventory_tid, company_id, stock_entry_id, happen_date, create_uid, create_time,
+        material_id, [number] , plan_quantity, quantity, stock_trans_id
+        )
+        values(
+        #{param1.type} ,#{move.inventoryId} ,#{move.inventoryTid} ,#{move.companyId} ,#{move.stockEntryId} ,
+        #{move.happenDate} ,#{move.createUid} , now() , #{move.materialId},#{move.number},
+        #{move.planQuantity} ,#{move.quantity}, #{move.stockTransId}
+        )
+    </insert>
+    <update id="update">
+        update move
+        <set>
+            type = #{param1.type} ,
+            inventory_id = #{param1.inventoryId} ,
+            inventory_tid = #{param1.inventoryTid} ,
+            company_id = #{move.companyId} ,
+            stock_entry_id = #{move.stockEntryId} ,
+            material_id = #{move.materialId} ,
+            update_uid = #{move.updateUid} ,
+            update_time = now(),
+            plan_quantity = #{move.planQuantity} ,
+            quantity = #{move.quantity} ,
+        </set>
+        where id = #{move.id}
+    </update>
+    <select id="selectByStockEntryId" resultType="com.cmsystem.wms.model.Move">
+        <include refid="selectBase"></include>
+        where t.stock_entry_id = #{stockEntryId} and t.is_del is null
+    </select>
+    <update id="updateStatusByStockEntry">
+        update move
+        <set>
+            status = #{param1.status},
+            <if test="param1.status == 3 or param1.status == 4">
+                approve_uid = #{param1.approveUid} ,
+                approve_time = now(),
+            </if>
+            <if test="param1.status == 3">
+                reject_remark = '',
+            </if>
+            <if test="param1.status == 4">
+                reject_remark = #{param1.rejectRemark} ,
+            </if>
+        </set>
+        where stock_entry_id = #{param1.id}
+    </update>
+    <update id="updateStatusByMove">
+        update move
+        <set>
+            status = #{param1.status} ,
+            <if test="param1.status == 3 or param1.status == 4">
+                approve_uid = #{param1.approveUid} ,
+                approve_time = now() ,
+            </if>
+            <if test="param1.status == 3">
+                reject_remark = '',
+            </if>
+            <if test="param1.status == 4">
+                reject_remark = #{param1.rejectRemark} ,
+            </if>
+            <if test="param1.status == 5">
+                delivery_id = #{param1.deliveryId} ,
+            </if>
+        </set>
+        where id = #{param1.id}
+    </update>
+    <select id="selectByStockTransId" resultType="com.cmsystem.wms.model.Move">
+        <include refid="selectBase"></include>
+        where t.stock_trans_id = #{stockTransId} and t.is_del is null
+    </select>
+    <update id="updateStatusByStockTrans">
+        update move
+        <set>
+            status = #{param1.status},
+            <if test="param1.status == 3 or param1.status == 4">
+                approve_uid = #{param1.approveUid} ,
+                approve_time = now(),
+            </if>
+            <if test="param1.status == 3">
+                reject_remark = '',
+            </if>
+            <if test="param1.status == 4">
+                reject_remark = #{param1.rejectRemark} ,
+            </if>
+        </set>
+        where stock_trans_id = #{param1.id}
+    </update>
+</mapper>

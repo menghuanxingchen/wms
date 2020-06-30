@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.cmsystem.wms.mapper.AuthMapper">
+
+    <!-- 添加 -->
+    <insert id="insert">
+        insert into auth (pid,name,url) values (#{auth.pid} ,#{auth.name} ,#{auth.url} );
+    </insert>
+    <!-- 更新 -->
+    <update id="update">
+        update auth
+        <set>
+            pid = #{auth.pid} ,
+            name = #{auth.name} ,
+            url = #{auth.url}
+        </set>
+        where id=#{auth.id}
+    </update>
+    <!-- 查找所有 -->
+    <select id="selectAll" resultType="com.cmsystem.wms.model.Auth">
+        select * from auth
+        <if test="pid != null">
+            where pid = #{pid}
+        </if>
+    </select>
+    <!-- 根据角色 id 查找权限 -->
+    <select id="selectAllByRoleId" resultType="com.cmsystem.wms.model.Auth">
+        select t.* from auth t
+        where id in (
+            select r.auth_id from role_auth r where r.role_id = #{roleId}
+        )
+    </select>
+    <select id="findByName" resultType="com.cmsystem.wms.model.Auth">
+        select top 1 * from auth where url like '${name}%'
+    </select>
+    <select id="findByUserAndAuthName" resultType="com.cmsystem.wms.model.Auth">
+        select top 1 t.* from auth t
+        inner join role_auth ra on ra.auth_id = t.id
+        inner join [user] u on u.role_id = ra.role_id
+        where t.url like '${name}%'
+
+    </select>
+
+
+</mapper>

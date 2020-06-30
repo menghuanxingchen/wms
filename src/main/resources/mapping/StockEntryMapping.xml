@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.cmsystem.wms.mapper.StockEntryMapper">
+
+    <sql id="selectBase">
+        select
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.selectUserFields"></include>
+        ,
+        ( select count(id) num from move where move.stock_entry_id = t.id and move.is_del is null ) moveCount,
+        cpy.name companyName ,
+        cpy.code companyCode,
+        cty.name categoryName,
+        appr_u.real_name approve_user_name
+        from stock_entry t
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.selectUserJoin"></include>
+        left join company cpy on cpy.id = t.company_id
+        left join category cty on cty.id = t.category_id
+        left join [user] appr_u on appr_u.id = t.approve_uid
+    </sql>
+
+
+    <!-- 新增 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+
+        insert into stock_entry (
+            number, order_number, category_id, company_id, status, type, remark, create_uid, create_time
+        )
+        values(
+            #{form.number} ,#{form.orderNumber} ,#{form.categoryId} ,#{form.companyId} , 1, #{form.type} ,
+            #{form.remark} ,#{param1.createUid} , now()
+         )
+    </insert>
+    <!-- 修改 -->
+    <update id="update">
+        update stock_entry
+        <set>
+            order_number = #{form.orderNumber} ,
+            category_id = #{form.categoryId} ,
+            company_id = #{form.companyId} ,
+            type = #{form.type} ,
+            remark = #{form.remark} ,
+            update_uid = #{form.updateUid} ,
+            update_time = now() ,
+        </set>
+        where id = #{form.id}
+    </update>
+    <!-- 条件查询 -->
+    <select id="selectWhere" resultType="com.cmsystem.wms.model.StockEntry">
+        <include refid="selectBase"></include>
+        <where>
+            <if test="form.number != null and form.number != ''">
+                and t.number like '%${form.number}%'
+            </if>
+            <if test="form.orderNumber != null and form.orderNumber != ''">
+                and t.order_number like '%${form.orderNumber}%'
+            </if>
+            <if test="form.categoryId != null and form.categoryId != 0">
+                and t.category_id = #{form.categoryId}
+            </if>
+            <if test="form.companyName != null and form.companyName != ''">
+                and cpy.name like '%${form.companyName}%'
+            </if>
+            <if test="form.status != null and form.status != 0">
+                and t.status = #{form.status}
+            </if>
+            <if test="form.type != null and form.type != 0">
+                and t.type = #{form.type}
+            </if>
+            <if test="form.startTime != null ">
+                and t.create_time >= #{form.startTime}
+            </if>
+            <if test="form.endTime != null ">
+                and t.create_time &lt; #{form.endTime}
+            </if>
+            and t.is_del is null
+        </where>
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.sortNoT"></include>
+    </select>
+    <select id="findById" resultType="com.cmsystem.wms.model.StockEntry">
+        <include refid="selectBase"></include>
+        where t.id = #{id} and t.is_del is null
+    </select>
+    <update id="updateStatus">
+        update stock_entry
+        <set>
+            status = #{form.status},
+            <if test="param1.status == 3 or param1.status == 4">
+                approve_uid = #{param1.approveUid} ,
+                approve_time = now(),
+            </if>
+            <if test="param1.status == 3">
+                reject_remark = '',
+            </if>
+            <if test="param1.status == 4">
+                reject_remark = #{param1.rejectRemark} ,
+            </if>
+            <if test="param1.status == 5">
+                delivery_id = #{param1.deliveryId}  ,
+            </if>
+        </set>
+        where id = #{form.id}
+    </update>
+</mapper>

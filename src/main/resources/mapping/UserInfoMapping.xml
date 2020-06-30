@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.cmsystem.wms.mapper.UserInfoMapper">
+
+    <sql id="fieldBase">
+        user_name,real_name,email,activated,mobile,phone,role_id,depart_id
+    </sql>
+    <sql id="insertField">
+        <include refid="fieldBase"></include>,
+        password
+    </sql>
+    <sql id="insertValues">
+        #{user.userName} ,#{user.realName} , #{user.email}, #{user.activated} ,
+        #{user.mobile} ,#{user.phone} ,#{user.roleId}, #{user.departId}, #{user.password}
+    </sql>
+
+    <!-- 刷新 token -->
+    <update id="refreshToken">
+        update [user]
+        set token = #{user.token}
+        where id = #{user.id} and is_del is null
+    </update>
+
+    <!-- 按条件查询用户信息-->
+    <select id="selectUserWhere" resultType="com.cmsystem.wms.model.UserInfo">
+        select
+        u.*, r.name role_name, d.name depart_name
+        from [user] u
+        left join [role] r on r.id = u.role_id
+        left join [depart] d on d.id = u.depart_id
+        <where>
+            <if test="form.userName != null and form.userName != '' ">
+                u.user_name like '%${form.userName}%'
+            </if>
+            <if test="form.realName != null and form.realName != '' ">
+                and u.real_name like '%${form.realName}%'
+            </if>
+            <if test="form.activated != null and form.activated != 0">
+                and u.activated = #{form.activated}
+            </if>
+            <if test="form.roleId != null and form.roleId != 0">
+                and u.role_id = #{form.roleId}
+            </if>
+            and u.is_del is null
+        </where>
+        <if test="sort.sortField != null ">
+            order by u.${sort.sortField} ${sort.sortOrder}
+        </if>
+    </select>
+
+    <!-- 添加用户 -->
+    <insert id="insert" keyProperty="id" useGeneratedKeys="true">
+        insert into [user](<include refid="insertField"></include>,create_time)
+        values(<include refid="insertValues"></include>,now())
+    </insert>
+
+    <!-- 更新用户信息 -->
+    <insert id="update">
+        update [user]
+        <set>
+            user_name = #{user.userName} ,
+            real_name = #{user.realName} ,
+            email = #{user.email} ,
+            activated = #{user.activated} ,
+            mobile = #{user.mobile} ,
+            phone = #{user.phone},
+            depart_id = #{param1.departId},
+            <if test="user.password != null and user.password != ''">
+                password = #{user.password},
+            </if>
+            gender = #{user.gender} ,
+            <if test="user.avatar != null and user.avatar != ''">
+                avatar = #{user.avatar} ,
+            </if>
+            role_id = #{user.roleId}
+        </set>
+        where
+        id = #{user.id}
+    </insert>
+    <update id="logout">
+        update [user]
+        set
+            token = null
+        where id = ${user.id}
+    </update>
+    <update id="updatePassword">
+        update [user]
+        set
+        password = #{user.password}
+        where id = #{param1.id}
+    </update>
+
+
+</mapper>

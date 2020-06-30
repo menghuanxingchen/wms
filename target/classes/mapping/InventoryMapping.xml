@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.cmsystem.wms.mapper.InventoryMapper">
+
+    <sql id="selectBase">
+        select
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.selectUserWarehouseField"></include>
+        ,
+        mtl.code material_code,
+        mtl.name material_name,
+        cty.name mtl_unit_name
+        from inventory t
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.selectUserWarehouseJoin"></include>
+        left join material mtl on mtl.id = t.material_id
+        left join category cty on cty.id = mtl.unit_id
+    </sql>
+    <select id="selectWhere" resultType="com.cmsystem.wms.model.Inventory">
+        <include refid="selectBase"></include>
+        <where>
+            <if test="form.materialCode != null and form.materialCode != ''">
+                and mtl.code like '%${form.materialCode}%'
+            </if>
+            <if test="form.materialName != null and form.materialName != ''">
+                and mtl.name like '%${form.materialName}%'
+            </if>
+            <include refid="com.cmsystem.wms.mapper.base.TempMapper.whereWarehouse"></include>
+        </where>
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.sort"></include>
+    </select>
+    <select id="findById" resultType="com.cmsystem.wms.model.Inventory">
+        select top 1
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.selectUserWarehouseField"></include>
+        ,
+        mtl.code material_code,
+        mtl.name material_name,
+        cty.name mtl_unit_name
+        from inventory t
+        <include refid="com.cmsystem.wms.mapper.base.TempMapper.selectUserWarehouseJoin"></include>
+        left join material mtl on mtl.id = t.material_id
+        left join category cty on cty.id = mtl.unit_id
+        where t.id = #{id} and t.is_del is null
+
+    </select>
+    <insert id="insert" useGeneratedKeys="true" keyProperty="form.id">
+        insert into inventory(
+        material_id,  last_in_time, last_in_quantity,  create_uid, create_time, warehouse_id, reservoir_id, stock_id
+        )
+        values(
+        #{form.materialId} ,#{form.lastInTime} ,#{form.lastInQuantity} ,#{param1.createUid} ,now() ,
+        #{form.warehouseId} ,#{form.reservoirId} ,#{form.stockId}
+        )
+    </insert>
+    <update id="update">
+        update inventory
+        <set>
+            last_in_time = #{param1.lastInTime} ,
+            last_out_time = #{form.lastOutTime} ,
+            last_in_quantity = #{param1.lastInQuantity} ,
+            last_out_quantity = #{form.lastOutQuantity},
+            update_uid = #{form.updateUid} ,
+            update_time = now(),
+            material_id = #{form.materialId} ,
+        </set>
+        where id = #{param1.id}
+    </update>
+    <select id="findByMove" resultType="com.cmsystem.wms.model.Inventory">
+        select * from inventory
+        where
+        warehouse_id = #{move.warehouseId}
+        and reservoir_id = #{move.reservoirId}
+        and stock_id = #{move.stockId}
+        and material_id = #{move.materialId}
+        and is_del is null
+    </select>
+    <delete id="selectMoveCountByInventory">
+        select count(id) from move where ( inventory_id = #{inventory.id} or inventory_tid = #{inventory.id} )  and is_del is null
+    </delete>
+    <update id="finishByMove">
+        update inventory
+        <set>
+            <if test="move.type == 1">
+                quantity = quantity + #{move.quantity} ,
+                last_in_quantity = #{move.quantity} ,
+                last_in_time = now(),
+            </if>
+            <if test="move.type == 2 ">
+                quantity = quantity - #{move.quantity} ,
+                last_out_quantity = #{move.quantity} ,
+                last_in_time = now(),
+            </if>
+            <if test="move.type == 3 and isTid">
+                quantity = quantity + #{move.quantity} ,
+                last_in_quantity = #{move.quantity} ,
+                last_in_time = now(),
+            </if>
+            <if test="move.type == 3 and !isTid">
+                quantity = quantity - #{move.quantity} ,
+                last_out_quantity = #{move.quantity} ,
+                last_out_time = now(),
+            </if>
+        </set>
+        <where>
+            <if test="isTid">
+                id = #{move.inventoryTid}
+            </if>
+            <if test="!isTid">
+                id = #{move.inventoryId}
+            </if>
+        </where>
+    </update>
+    <select id="findByMtlAndStk" resultType="com.cmsystem.wms.model.Inventory">
+        <include refid="selectBase"></include>
+        where t.material_id = #{form.materialId} and t.stock_id = #{param1.stockId} and t.is_del is null and t.quantity
+        > 0
+    </select>
+
+
+</mapper>
